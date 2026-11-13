@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Java / Eclipse build outputs & local workspace state
+# (เก็บ .project และ .classpath ไว้เพื่อให้เพื่อนเปิดใช้งานบน Mac/Windows ได้ทันที)
+bin/
+*.class
+.metadata/
+.settings/
+*.log
+*.tmp
+*.bak
