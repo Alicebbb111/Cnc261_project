@@ -512,7 +512,16 @@ GO
 --                 LEFT JOIN dbo.store (s) และ LEFT JOIN dbo.warehouse (w)
 --   • เงื่อนไข: ps.number_on_hand > 0 AND p.UPC = 'UPC000000000001'
 --   • ข้อมูลที่ต้องดึง: UPC, ชื่อสินค้า, SKU, in_store, รหัส/เมือง/รัฐของสาขาและคลัง, number_on_hand, retail_price
--- TODO (Dream): เขียนคำสั่ง SELECT 1.4.1 ด้านล่างนี้
+SELECT
+    p.UPC, p.product_name, ps.SKU, ps.in_store,
+    ps.store_numb, ps.dept_numb, s.store_city, s.store_state_code,
+    ps.warehouse_numb, w.warehouse_city, w.warehouse_state_code,
+    ps.number_on_hand, ps.retail_price
+FROM dbo.product p
+JOIN dbo.product_stocked ps ON p.UPC = ps.UPC
+LEFT JOIN dbo.store s ON ps.store_numb = s.store_numb
+LEFT JOIN dbo.warehouse w ON ps.warehouse_numb = w.warehouse_numb
+WHERE ps.number_on_hand > 0 AND p.UPC = 'UPC000000000001';
 
 
 -- ----------------------------------------------------------------------------
@@ -542,7 +551,14 @@ GO
 --                 LEFT JOIN dbo.sales_promotion (sp) โดยเช็กช่วงวันที่โปรโมชั่นที่ยังมีผลวันนี้ (CAST(GETDATE() AS DATE) BETWEEN ...)
 --   • เงื่อนไข: p.web_orderable = 1 AND ps.in_store = 0 AND ps.number_on_hand > 0
 --   • หมายเหตุ: สามารถเรียกดูผ่าน View dbo.vw_Web_Product_Promo ได้ด้วย
--- TODO (Dream): เขียนคำสั่ง SELECT 1.4.2 ด้านล่างนี้
+SELECT
+    p.UPC, p.product_name, ps.SKU, ps.retail_price, ps.number_on_hand,
+    sp.promotion_start_date, sp.promotion_end_date, sp.promotion_details
+FROM dbo.product p
+JOIN dbo.product_stocked ps ON p.UPC = ps.UPC
+LEFT JOIN dbo.sales_promotion sp ON p.UPC = sp.UPC
+    AND CAST(GETDATE() AS DATE) BETWEEN sp.promotion_start_date AND sp.promotion_end_date
+WHERE p.web_orderable = 1 AND ps.in_store = 0 AND ps.number_on_hand > 0;
 
 
 -- ----------------------------------------------------------------------------
