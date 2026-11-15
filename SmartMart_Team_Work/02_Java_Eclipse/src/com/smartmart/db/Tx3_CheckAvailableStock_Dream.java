@@ -15,25 +15,34 @@ public class Tx3_CheckAvailableStock_Dream {
 
     public static void checkAvailableStock(Connection conn, String targetUpc) throws SQLException {
 
-        // TODO (Dream) — เตรียมคำสั่ง SQL:
-        // SELECT p.UPC, p.product_name, ps.SKU, ps.in_store,
-        //        ps.store_numb, ps.dept_numb, s.store_city,
-        //        ps.warehouse_numb, w.warehouse_city, ps.number_on_hand, ps.retail_price
-        // FROM dbo.product p
-        // JOIN dbo.product_stocked ps ON p.UPC = ps.UPC
-        // LEFT JOIN dbo.store s ON ps.store_numb = s.store_numb
-        // LEFT JOIN dbo.warehouse w ON ps.warehouse_numb = w.warehouse_numb
-        // WHERE ps.number_on_hand > 0 AND p.UPC = ?
+        String sql = "SELECT p.UPC, p.product_name, ps.SKU, ps.in_store, "
+                + "ps.store_numb, ps.dept_numb, s.store_city, "
+                + "ps.warehouse_numb, w.warehouse_city, ps.number_on_hand, ps.retail_price "
+                + "FROM dbo.product p "
+                + "JOIN dbo.product_stocked ps ON p.UPC = ps.UPC "
+                + "LEFT JOIN dbo.store s ON ps.store_numb = s.store_numb "
+                + "LEFT JOIN dbo.warehouse w ON ps.warehouse_numb = w.warehouse_numb "
+                + "WHERE ps.number_on_hand > 0 AND p.UPC = ?";
 
         try {
             conn.setAutoCommit(false);
             conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
 
-            // TODO (Dream) — ขั้นตอนการทำงานใน try-with-resources:
-            // Step 1: สร้าง PreparedStatement และ setString(1, targetUpc)
-            // Step 2: executeQuery() แล้ววน while (rs.next())
-            // Step 3: ตรวจ rs.getBoolean("in_store") เพื่อแยกว่าสินค้าอยู่ที่ Store (store_numb, dept_numb)
-            //         หรืออยู่ที่ Warehouse (warehouse_numb) แล้วพิมพ์รายละเอียดสินค้าและ number_on_hand ออกทางหน้าจอ
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, targetUpc);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        boolean inStore = rs.getBoolean("in_store");
+                        String location = inStore
+                                ? "Store " + rs.getInt("store_numb") + " (Dept " + rs.getInt("dept_numb") + ")"
+                                : "Warehouse " + rs.getInt("warehouse_numb");
+                        System.out.println("สินค้า: " + rs.getString("product_name")
+                                + " | SKU: " + rs.getString("SKU")
+                                + " | อยู่ที่: " + location
+                                + " | จำนวนคงเหลือ: " + rs.getInt("number_on_hand") + " ชิ้น");
+                    }
+                }
+            }
 
             conn.commit();
         } catch (SQLException ex) {
