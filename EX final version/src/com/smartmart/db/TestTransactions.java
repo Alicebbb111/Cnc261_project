@@ -17,8 +17,14 @@ public class TestTransactions {
         try {
             System.out.println("=== 1. ทดสอบรัน Step-by-Step Transactions (กรณีสำเร็จ COMMIT และกรณีไม่ผ่าน ROLLBACK) ===");
 
-            // [Tx 3] ค้นหาและโอนย้ายสต็อกจากคลังสินค้ามาเติมหน้าร้าน (Login_Manager)
+            // [Tx 3] ค้นหาและโอนย้ายสต็อกจากคลังสินค้ามาเติมหน้าร้าน: ทดสอบสาขาไม่รับของก่อน (ROLLBACK สต็อกกลับเท่าเดิม) แล้วยืนยันรับของ (COMMIT) (Login_Manager)
             try (Connection conn = DriverManager.getConnection(URL, "Login_Manager", "Password_Mgr_2026!")) {
+                try {
+                    SmartMartTransactions.checkAndTransferStockToStore(
+                            conn, "UPC000000000001", "SKU-WHSE-000001", "SKU-STORE-00001", 5, false);
+                } catch (SQLException ignored) {
+                }
+
                 SmartMartTransactions.checkAndTransferStockToStore(
                         conn, "UPC000000000001", "SKU-WHSE-000001", "SKU-STORE-00001", 5, true);
             }
