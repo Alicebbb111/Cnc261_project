@@ -49,13 +49,28 @@ public class TestTransactions {
                 );
             }
 
-            // [Tx 1] คืนสินค้าหน้าร้านภายใน 15 วัน (Login_Supervisor)
+            // [Tx 1] คืนสินค้าหน้าร้านภายใน 15 วัน: ทดสอบไม่อนุมัติคืนเงินก่อน (ROLLBACK) แล้วอนุมัติ (COMMIT) (Login_Supervisor)
             try (Connection conn = DriverManager.getConnection(URL, "Login_Supervisor", "Password_Sup_2026!")) {
+                try {
+                    SmartMartTransactions.returnMerchandiseWithin15Days(conn, 5001, "SKU-STORE-00001", 1, false);
+                } catch (SQLException ignored) {
+                }
+
                 SmartMartTransactions.returnMerchandiseWithin15Days(conn, 5001, "SKU-STORE-00001", 1, true);
             }
 
-            // [Tx 4] อัปเดตสถานะจัดส่งและซ่อนที่อยู่ลูกค้าเป็น '*** MASKED ***' (Login_Manager)
+            // [Tx 4] อัปเดตสถานะจัดส่งและซ่อนที่อยู่ลูกค้าเป็น '*** MASKED ***': ทดสอบขนส่งไม่รับพัสดุ (ROLLBACK) แล้วรับสำเร็จ (COMMIT) (Login_Manager)
             try (Connection conn = DriverManager.getConnection(URL, "Login_Manager", "Password_Mgr_2026!")) {
+                try {
+                    SmartMartTransactions.updateShippingStatusAndMaskAddress(
+                            conn, 6001, "SKU-WHSE-000001", 4001,
+                            new Timestamp(System.currentTimeMillis()),
+                            new BigDecimal("200.00"), new BigDecimal("14.50"), new BigDecimal("15.00"),
+                            false
+                    );
+                } catch (SQLException ignored) {
+                }
+
                 SmartMartTransactions.updateShippingStatusAndMaskAddress(
                         conn, 6001, "SKU-WHSE-000001", 4001,
                         new Timestamp(System.currentTimeMillis()),
@@ -94,8 +109,19 @@ public class TestTransactions {
                 SmartMartTransactions.inspectAndCancelUnshippedWebOrder(conn, 6003, "SKU-WHSE-000001");
             }
 
-            // [Tx 8] ฝ่าย HR บรรจุพนักงานใหม่ทดแทน พร้อมเลื่อนตำแหน่งผู้จัดการแผนก (Login_HR)
+            // [Tx 8] ฝ่าย HR บรรจุพนักงานใหม่ทดแทน พร้อมเลื่อนตำแหน่งผู้จัดการแผนก: ทดสอบไม่อนุมัติก่อน (ROLLBACK) แล้วอนุมัติ (COMMIT) (Login_HR)
             try (Connection conn = DriverManager.getConnection(URL, "Login_HR", "Password_HR_2026!")) {
+                try {
+                    SmartMartTransactions.promoteEmployeeAndAssignDeptManager(
+                            conn, 1002, new BigDecimal("25.00"),
+                            1003, "Charlie", "Davis", "88 Pine St", "San Francisco", "CA", "94103",
+                            "415-555-1003", "333-33-3333", Date.valueOf("1998-03-15"),
+                            10, 101, 2, new BigDecimal("22.00"),
+                            false
+                    );
+                } catch (SQLException ignored) {
+                }
+
                 SmartMartTransactions.promoteEmployeeAndAssignDeptManager(
                         conn, 1002, new BigDecimal("25.00"),
                         1003, "Charlie", "Davis", "88 Pine St", "San Francisco", "CA", "94103",
