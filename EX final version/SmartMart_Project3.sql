@@ -479,7 +479,7 @@ GO
 -- 5.1 Role_HR (ฝ่ายทรัพยากรบุคคล):
 -- • จัดการข้อมูลพนักงาน (dbo.employee) ได้เต็มรูปแบบทุกคอลัมน์ และมีสิทธิ์ UNMASK เห็น SSN และเงินเดือนจริง
 -- • ดูข้อมูลรัฐ สาขา แผนก คลังสินค้า และอัปเดตรหัสผู้จัดการสาขา/แผนก/คลัง เมื่อมีการเลื่อนตำแหน่งได้
--- • ห้ามเข้าถึงข้อมูลการขายและข้อมูลบัตรเครดิตลูกค้า
+-- • ไม่ได้ให้สิทธิ์เข้าถึงข้อมูลการขายและข้อมูลบัตรเครดิตลูกค้า (Least Privilege)
 -- ----------------------------------------------------------------------------
 GRANT UNMASK TO Role_HR;
 GRANT SELECT, INSERT, UPDATE ON dbo.employee TO Role_HR;
@@ -492,38 +492,24 @@ GRANT UPDATE (store_manager_id) ON dbo.store TO Role_HR;
 GRANT UPDATE (dept_manager_id) ON dbo.department TO Role_HR;
 GRANT UPDATE (warehouse_manager_id) ON dbo.warehouse TO Role_HR;
 
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.product TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.product_stocked TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.in_store_sale TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.in_store_sale_item TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_sale TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_sale_item TO Role_HR;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_customer_credit_card TO Role_HR;
-
 -- ----------------------------------------------------------------------------
 -- 5.2 Role_Admin (ผู้ดูแลระบบฐานข้อมูล - DBA):
 -- • ดูแลโครงสร้างตาราง (DDL) และสำรองข้อมูล (Backup)
--- • แยกหน้าที่ (Separation of Duties) โดยบล็อกไม่ให้ดูเลขบัตรเครดิตลูกค้าและตารางการขาย
+-- • แยกหน้าที่ (Separation of Duties) โดยไม่ได้ให้สิทธิ์ SELECT ตารางการขายและบัตรเครดิตลูกค้า
 -- ----------------------------------------------------------------------------
 ALTER ROLE db_ddladmin ADD MEMBER User_Admin;
 ALTER ROLE db_backupoperator ADD MEMBER User_Admin;
 GRANT BACKUP DATABASE TO Role_Admin;
-DENY SELECT ON dbo.credit_sale_details TO Role_Admin;
-DENY SELECT ON dbo.web_customer_credit_card TO Role_Admin;
-DENY SELECT ON dbo.in_store_sale TO Role_Admin;
-DENY SELECT ON dbo.web_sale TO Role_Admin;
 
 -- ----------------------------------------------------------------------------
 -- 5.3 Role_Manager (ผู้จัดการสาขาและคลังสินค้า):
 -- • เข้าถึงตารางพนักงาน (SELECT * FROM dbo.employee และ vw_Employee_Directory) ได้เพื่อบริหารทีม
---   โดย Dynamic Data Masking จะบังเลข SSN เป็น 'XXX-XX-XXXX' อัตโนมัติ และห้ามแก้ไขข้อมูลพนักงาน/เงินเดือนเองโดยไม่ผ่าน HR
+--   โดย Dynamic Data Masking จะบังเลข SSN เป็น 'XXX-XX-XXXX' อัตโนมัติ และไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน/เงินเดือน
 -- • บริหารสินค้า สต็อก โปรโมชั่น ดูรายงานยอดขาย และจัดการการจัดส่งสินค้าออนไลน์
--- • บล็อกการเข้าถึงตารางบัตรเครดิตจริง (ให้ตรวจสอบออเดอร์ผ่าน vw_Safe_Web_Shipping_Address แทน)
+-- • ไม่ได้ให้สิทธิ์เข้าถึงตารางบัตรเครดิตจริง (ให้ตรวจสอบออเดอร์ผ่าน vw_Safe_Web_Shipping_Address แทน)
 -- ----------------------------------------------------------------------------
 GRANT SELECT ON dbo.employee TO Role_Manager;
 GRANT SELECT ON dbo.vw_Employee_Directory TO Role_Manager;
-DENY INSERT, UPDATE, DELETE ON dbo.employee TO Role_Manager;
 
 GRANT SELECT ON dbo.state TO Role_Manager;
 GRANT SELECT ON dbo.store TO Role_Manager;
@@ -544,18 +530,14 @@ GRANT SELECT ON dbo.vw_Materialized_Available_Inventory TO Role_Manager;
 GRANT SELECT ON dbo.vw_Materialized_Web_Available_Inventory TO Role_Manager;
 GRANT SELECT ON dbo.vw_Materialized_InStore_Available_Inventory TO Role_Manager;
 
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_Manager;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_customer_credit_card TO Role_Manager;
-
 -- ----------------------------------------------------------------------------
 -- 5.4 Role_Supervisor (หัวหน้างานหน้าร้าน):
 -- • เข้าถึงตารางพนักงาน (SELECT * FROM dbo.employee และ vw_Employee_Directory) เพื่อดูลูกน้องในแผนกได้
---   โดย Dynamic Data Masking จะบังเลข SSN ('XXX-XX-XXXX') และบังเงินเดือน (0.00) อัตโนมัติ และห้ามแก้ไขข้อมูลพนักงาน
+--   โดย Dynamic Data Masking จะบังเลข SSN ('XXX-XX-XXXX') และบังเงินเดือน (0.00) อัตโนมัติ และไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน
 -- • ตรวจสอบใบเสร็จ ปรับสต็อก และอนุมัติการคืนสินค้าหน้าร้านภายใน 15 วัน (Tx 1)
 -- ----------------------------------------------------------------------------
 GRANT SELECT ON dbo.employee TO Role_Supervisor;
 GRANT SELECT ON dbo.vw_Employee_Directory TO Role_Supervisor;
-DENY INSERT, UPDATE, DELETE ON dbo.employee TO Role_Supervisor;
 
 GRANT SELECT ON dbo.store TO Role_Supervisor;
 GRANT SELECT ON dbo.department TO Role_Supervisor;
@@ -568,19 +550,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.in_store_sale_item TO Role_Superviso
 GRANT SELECT ON dbo.vw_Materialized_Available_Inventory TO Role_Supervisor;
 GRANT SELECT ON dbo.vw_Materialized_InStore_Available_Inventory TO Role_Supervisor;
 
-DENY SELECT ON dbo.vw_Materialized_Web_Available_Inventory TO Role_Supervisor;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_Supervisor;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_customer_credit_card TO Role_Supervisor;
-
 -- ----------------------------------------------------------------------------
 -- 5.5 Role_Staff (พนักงานขายทั่วไป / Employee):
 -- • เข้าถึงตารางพนักงาน (SELECT * FROM dbo.employee และ vw_Employee_Directory) เพื่อดูรายชื่อพนักงานและหัวหน้างานได้
---   โดย Dynamic Data Masking จะบังเลข SSN ('XXX-XX-XXXX') และบังเงินเดือน (0.00) อัตโนมัติ และห้ามแก้ไขข้อมูลพนักงาน
+--   โดย Dynamic Data Masking จะบังเลข SSN ('XXX-XX-XXXX') และบังเงินเดือน (0.00) อัตโนมัติ และไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน
 -- • ค้นหาสินค้า เช็กสต็อกหน้าร้านผ่าน Materialized View ที่ Isolate เฉพาะหน้าร้าน ตัดสต็อก และเปิดบิลขายหน้าร้าน (ห้ามแก้ไขหรือลบบิลย้อนหลัง)
 -- ----------------------------------------------------------------------------
 GRANT SELECT ON dbo.employee TO Role_Staff;
 GRANT SELECT ON dbo.vw_Employee_Directory TO Role_Staff;
-DENY INSERT, UPDATE, DELETE ON dbo.employee TO Role_Staff;
 
 GRANT SELECT ON dbo.store TO Role_Staff;
 GRANT SELECT ON dbo.department TO Role_Staff;
@@ -593,17 +570,11 @@ GRANT SELECT, INSERT ON dbo.in_store_sale TO Role_Staff;
 GRANT SELECT, INSERT ON dbo.in_store_sale_item TO Role_Staff;
 GRANT SELECT ON dbo.vw_Materialized_InStore_Available_Inventory TO Role_Staff;
 
-DENY SELECT ON dbo.vw_Materialized_Web_Available_Inventory TO Role_Staff;
-DENY UPDATE, DELETE ON dbo.in_store_sale TO Role_Staff;
-DENY UPDATE, DELETE ON dbo.in_store_sale_item TO Role_Staff;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_Staff;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_customer_credit_card TO Role_Staff;
-
 -- ----------------------------------------------------------------------------
 -- 5.6 Role_InStore_Sale_App (แอปพลิเคชัน POS ขายหน้าร้าน):
 -- • ทำงานเฉพาะส่วนการขายหน้าร้าน และดูสต็อกหน้าร้านที่ถูก Isolate ไว้ใน vw_Materialized_InStore_Available_Inventory
--- • บันทึกข้อมูลบัตรเครดิตตอนชำระเงินได้ (GRANT INSERT ON credit_sale_details) แต่ดึงเลขบัตรออกมาดูไม่ได้ (DENY SELECT)
--- • บล็อกการเข้าถึงตารางพนักงาน (employee) และระบบขายออนไลน์ทั้งหมด
+-- • บันทึกข้อมูลบัตรเครดิตตอนชำระเงินได้ (GRANT INSERT ON credit_sale_details) แต่ดึงเลขบัตรออกมาดูไม่ได้ (ไม่ได้ให้สิทธิ์ SELECT)
+-- • ไม่ได้ให้สิทธิ์เข้าถึงตารางพนักงาน (employee) และระบบขายออนไลน์ทั้งหมด
 -- ----------------------------------------------------------------------------
 GRANT SELECT ON dbo.product TO Role_InStore_Sale_App;
 GRANT SELECT ON dbo.sales_promotion TO Role_InStore_Sale_App;
@@ -614,17 +585,11 @@ GRANT SELECT, INSERT, UPDATE ON dbo.in_store_sale_item TO Role_InStore_Sale_App;
 GRANT INSERT ON dbo.credit_sale_details TO Role_InStore_Sale_App;
 GRANT SELECT ON dbo.vw_Materialized_InStore_Available_Inventory TO Role_InStore_Sale_App;
 
-DENY SELECT ON dbo.vw_Materialized_Web_Available_Inventory TO Role_InStore_Sale_App;
-DENY SELECT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_InStore_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.employee TO Role_InStore_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_sale TO Role_InStore_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.web_customer_credit_card TO Role_InStore_Sale_App;
-
 -- ----------------------------------------------------------------------------
 -- 5.7 Role_Web_Sale_App (แอปพลิเคชันเว็บไซต์ขายออนไลน์):
 -- • ดึงข้อมูลสินค้าและสต็อกคลังออนไลน์ที่ถูก Isolate ไว้ผ่าน vw_Web_Product_Promo และ vw_Materialized_Web_Available_Inventory
 -- • จัดการคำสั่งซื้อออนไลน์และตัดสต็อกเฉพาะคลังออนไลน์
--- • บล็อกการเข้าถึงข้อมูลพนักงาน (employee), สาขาหน้าร้าน (store, department), สต็อกหน้าร้าน และบิลหน้าร้านทั้งหมด
+-- • ไม่ได้ให้สิทธิ์เข้าถึงข้อมูลพนักงาน (employee), สาขาหน้าร้าน (store, department), สต็อกหน้าร้าน และบิลหน้าร้านทั้งหมด
 -- ----------------------------------------------------------------------------
 GRANT SELECT ON dbo.product TO Role_Web_Sale_App;
 GRANT SELECT ON dbo.sales_promotion TO Role_Web_Sale_App;
@@ -636,13 +601,6 @@ GRANT SELECT, INSERT, UPDATE ON dbo.web_sale TO Role_Web_Sale_App;
 GRANT SELECT, INSERT, UPDATE ON dbo.web_sale_item TO Role_Web_Sale_App;
 GRANT SELECT ON dbo.vw_Web_Product_Promo TO Role_Web_Sale_App;
 GRANT SELECT ON dbo.vw_Materialized_Web_Available_Inventory TO Role_Web_Sale_App;
-
-DENY SELECT ON dbo.vw_Materialized_InStore_Available_Inventory TO Role_Web_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.employee TO Role_Web_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.store TO Role_Web_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.department TO Role_Web_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.in_store_sale TO Role_Web_Sale_App;
-DENY SELECT, INSERT, UPDATE, DELETE ON dbo.credit_sale_details TO Role_Web_Sale_App;
 GO
 
 -- ============================================================================
