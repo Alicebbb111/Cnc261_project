@@ -58,6 +58,36 @@ public class TestTransactions {
                 );
             }
 
+            // [Tx 6] สั่งซื้อสินค้าออนไลน์ด้วยบัตรเครดิต: ทดสอบไม่จ่ายเงิน (ROLLBACK) แล้วจ่ายจริง (COMMIT) (Login_Web_Sale_App)
+            try (Connection conn = DriverManager.getConnection(URL, "Login_Web_Sale_App", "Password_WebSaleApp_2026!")) {
+                try {
+                    SmartMartTransactions.purchaseOnlineWithCreditCard(
+                            conn, 6003, new Date(System.currentTimeMillis()), 3001,
+                            "4999888877776666", "SKU-WHSE-000001", 1,
+                            new BigDecimal("200.00"), new BigDecimal("15.00"), new BigDecimal("14.50"),
+                            4001, false // ไม่ชำระเงิน -> Rollback คืนสต็อกคลังกลับเท่าเดิม
+                    );
+                } catch (SQLException ignored) {
+                }
+
+                SmartMartTransactions.purchaseOnlineWithCreditCard(
+                        conn, 6003, new Date(System.currentTimeMillis()), 3001,
+                        "4999888877776666", "SKU-WHSE-000001", 1,
+                        new BigDecimal("200.00"), new BigDecimal("15.00"), new BigDecimal("14.50"),
+                        4001, true // จ่ายเงินสำเร็จ -> Commit
+                );
+            }
+
+            // [Tx 7] ตรวจออเดอร์ผ่าน Safe View และยกเลิกออเดอร์: ทดสอบออเดอร์ที่ส่งแล้ว #6001 (ROLLBACK) แล้วออเดอร์ที่ยังไม่ส่ง #6003 (COMMIT) (Login_Manager)
+            try (Connection conn = DriverManager.getConnection(URL, "Login_Manager", "Password_Mgr_2026!")) {
+                try {
+                    SmartMartTransactions.inspectAndCancelUnshippedWebOrder(conn, 6001, "SKU-WHSE-000001");
+                } catch (SQLException ignored) {
+                }
+
+                SmartMartTransactions.inspectAndCancelUnshippedWebOrder(conn, 6003, "SKU-WHSE-000001");
+            }
+
             // [Tx 8] ฝ่าย HR บรรจุพนักงานใหม่ทดแทน พร้อมเลื่อนตำแหน่งผู้จัดการแผนก (Login_HR)
             try (Connection conn = DriverManager.getConnection(URL, "Login_HR", "Password_HR_2026!")) {
                 SmartMartTransactions.promoteEmployeeAndAssignDeptManager(

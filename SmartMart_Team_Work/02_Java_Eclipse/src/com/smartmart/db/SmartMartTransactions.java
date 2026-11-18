@@ -427,6 +427,185 @@ public class SmartMartTransactions {
     }
 
     // =========================================================================
+    // Transaction 6: การสั่งซื้อสินค้าออนไลน์ผ่านเว็บไซต์ด้วยบัตรเครดิตแบบ Step-by-Step
+    // Step 1: ล็อกและตัดสต็อกคลังออนไลน์ (UPDLOCK, ROWLOCK)
+    // Step 2: สร้างหัวคำสั่งซื้อ (web_sale) และรายการสินค้า (web_sale_item)
+    // Step 3: ตรวจสอบวันหมดอายุบัตรเครดิตและการยืนยันชำระเงิน (paymentConfirmed)
+    // Step 4: ถ้าบัตรผ่านและจ่ายเงินสำเร็จ -> commit()
+    //         ถ้าบัตรหมดอายุหรือไม่จ่ายเงิน -> rollback() คืนสต็อกคลังออนไลน์กลับเท่าเดิม
+    // =========================================================================
+    public static void purchaseOnlineWithCreditCard(
+            Connection conn, int webSaleNumb, Date webSaleDate, int customerNumb,
+            String creditCardNumb, String webSku, int quantity, BigDecimal unitPrice,
+            BigDecimal shippingFee, BigDecimal taxAmount, int shippingAddressNumb,
+            boolean paymentConfirmed) throws SQLException {
+
+        String deductWebStockSql = "UPDATE dbo.product_stocked WITH (UPDLOCK, ROWLOCK) "
+                + "SET number_on_hand = number_on_hand - ? "
+                + "WHERE SKU = ? AND in_store = 0 AND number_on_hand >= ?";
+        String insertWebSaleSql = "INSERT INTO dbo.web_sale ("
+                + "web_sale_numb, web_sale_date, web_customer_numb, web_credit_card_numb, "
+                + "web_sale_total, web_sale_merchandise_total, web_sale_shipping, web_sale_tax) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String insertWebItemSql = "INSERT INTO dbo.web_sale_item ("
+                + "web_sale_numb, web_sale_SKU, web_sale_quantity, web_sale_shipped, "
+                + "web_sale_price, web_shipping_address_numb, web_sale_date_shipped) "
+                + "VALUES (?, ?, ?, 0, ?, ?, NULL)";
+        String validateCardSql = "SELECT 1 FROM dbo.web_customer_credit_card "
+                + "WHERE web_customer_numb = ? AND web_credit_card_numb = ? "
+                + "AND web_credit_card_exp_date >= CAST(GETDATE() AS DATE)";
+
+        try {
+            conn.setAutoCommit(false);
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+
+            try (PreparedStatement psStock = conn.prepareStatement(deductWebStockSql);
+                 PreparedStatement psSale = conn.prepareStatement(insertWebSaleSql);
+                 PreparedStatement psItem = conn.prepareStatement(insertWebItemSql);
+                 PreparedStatement psCard = conn.prepareStatement(validateCardSql)) {
+
+                // Step 1: ล็อกแถวและตัดสต็อกคลังออนไลน์ชั่วคราว
+                psStock.setInt(1, quantity);
+                psStock.setString(2, webSku);
+                psStock.setInt(3, quantity);
+                if (psStock.executeUpdate() == 0) {
+                    throw new SQLException("สต็อกสินค้าในคลังออนไลน์ไม่เพียงพอสำหรับ SKU: " + webSku);
+                }
+
+                // Step 2: บันทึกหัวคำสั่งซื้อและรายการสินค้า
+                BigDecimal merchTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+                BigDecimal saleTotal = merchTotal.add(shippingFee).add(taxAmount);
+
+                psSale.setInt(1, webSaleNumb);
+                psSale.setDate(2, webSaleDate);
+                psSale.setInt(3, customerNumb);
+                psSale.setString(4, creditCardNumb);
+                psSale.setBigDecimal(5, saleTotal);
+                psSale.setBigDecimal(6, merchTotal);
+                psSale.setBigDecimal(7, shippingFee);
+                psSale.setBigDecimal(8, taxAmount);
+                psSale.executeUpdate();
+
+                psItem.setInt(1, webSaleNumb);
+                psItem.setString(2, webSku);
+                psItem.setInt(3, quantity);
+                psItem.setBigDecimal(4, unitPrice);
+                psItem.setInt(5, shippingAddressNumb);
+                psItem.executeUpdate();
+
+                // Step 3: ตรวจสอบความถูกต้องของบัตรเครดิตและผลการชำระเงิน
+                psCard.setInt(1, customerNumb);
+                psCard.setString(2, creditCardNumb);
+                try (ResultSet rs = psCard.executeQuery()) {
+                    if (!rs.next()) {
+                        throw new SQLException("บัตรเครดิตหมดอายุหรือไม่ถูกต้อง -> ระบบ Rollback คืนสต็อกคลังออนไลน์กลับเท่าเดิม");
+                    }
+                }
+                if (!paymentConfirmed) {
+                    throw new SQLException("ลูกค้าไม่ชำระเงินหรือบัตรเครดิตไม่ผ่าน -> ระบบ Rollback คืนสต็อกคลังออนไลน์กลับเท่าเดิม");
+                }
+
+                // Step 4: ชำระเงินสำเร็จ Commit
+                conn.commit();
+                System.out.println("[Tx 6] สั่งซื้อสินค้าออนไลน์ด้วยบัตรเครดิต ใบสั่งซื้อเว็บ " + webSaleNumb + " สำเร็จ (COMMIT)");
+            }
+        } catch (SQLException ex) {
+            conn.rollback();
+            System.out.println("[Tx 6] ยกเลิกรายการสั่งซื้อออนไลน์ (ROLLBACK - สต็อกคลังกลับเท่าเดิม): " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    // =========================================================================
+    // Transaction 7: ตรวจสอบออเดอร์เว็บผ่าน View ปกป้องข้อมูลบัตร และยกเลิกออเดอร์ที่ยังไม่จัดส่ง
+    // Step 1: ตรวจสอบออเดอร์ผ่าน vw_Safe_Web_Shipping_Address และล็อกรายการใน web_sale_item
+    // Step 2: คืนสต็อกกลับเข้าคลังออนไลน์ชั่วคราว
+    // Step 3: ตรวจสอบสถานะการจัดส่ง (ถ้าจัดส่งแล้ว web_sale_shipped = 1 -> rollback())
+    // Step 4: ถ้ายังไม่จัดส่ง -> ลบรายการ ปรับยอดบิลเป็น 0 และ commit()
+    // =========================================================================
+    public static void inspectAndCancelUnshippedWebOrder(
+            Connection conn, int webSaleNumb, String webSku) throws SQLException {
+
+        String inspectSafeViewSql = "SELECT masked_credit_card_numb, web_customer_shipping_state_code, "
+                + "web_customer_shipping_zip, web_sale_shipped "
+                + "FROM dbo.vw_Safe_Web_Shipping_Address "
+                + "WHERE web_sale_numb = ? AND web_sale_SKU = ?";
+        String lockItemSql = "SELECT web_sale_quantity, web_sale_shipped "
+                + "FROM dbo.web_sale_item WITH (UPDLOCK, ROWLOCK) "
+                + "WHERE web_sale_numb = ? AND web_sale_SKU = ?";
+        String restoreStockSql = "UPDATE dbo.product_stocked WITH (ROWLOCK) "
+                + "SET number_on_hand = number_on_hand + ? "
+                + "WHERE SKU = ? AND in_store = 0";
+        String deleteItemSql = "DELETE FROM dbo.web_sale_item WHERE web_sale_numb = ? AND web_sale_SKU = ?";
+        String zeroHeaderSql = "UPDATE dbo.web_sale SET web_sale_merchandise_total = 0.00, "
+                + "web_sale_shipping = 0.00, web_sale_tax = 0.00, web_sale_total = 0.00 "
+                + "WHERE web_sale_numb = ?";
+
+        try {
+            conn.setAutoCommit(false);
+            conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+
+            try (PreparedStatement psInspect = conn.prepareStatement(inspectSafeViewSql);
+                 PreparedStatement psLock = conn.prepareStatement(lockItemSql);
+                 PreparedStatement psRestore = conn.prepareStatement(restoreStockSql);
+                 PreparedStatement psDelete = conn.prepareStatement(deleteItemSql);
+                 PreparedStatement psZero = conn.prepareStatement(zeroHeaderSql)) {
+
+                // Step 1: ตรวจสอบออเดอร์ผ่าน View ที่ปกป้องเลขบัตรและที่อยู่ พร้อมล็อกแถวรายการสั่งซื้อ
+                psInspect.setInt(1, webSaleNumb);
+                psInspect.setString(2, webSku);
+                try (ResultSet rsView = psInspect.executeQuery()) {
+                    if (rsView.next()) {
+                        System.out.println("[Tx 7 ตรวจผ่าน Safe View] ออเดอร์ #" + webSaleNumb
+                                + " | บัตร: " + rsView.getString("masked_credit_card_numb")
+                                + " | ปลายทาง: " + rsView.getString("web_customer_shipping_state_code")
+                                + " " + rsView.getString("web_customer_shipping_zip")
+                                + " | จัดส่งแล้ว: " + rsView.getBoolean("web_sale_shipped"));
+                    }
+                }
+
+                int cancelQty;
+                boolean shippedFlag;
+                psLock.setInt(1, webSaleNumb);
+                psLock.setString(2, webSku);
+                try (ResultSet rsLock = psLock.executeQuery()) {
+                    if (!rsLock.next()) {
+                        throw new SQLException("ไม่พบรายการสั่งซื้อที่ต้องการยกเลิกสำหรับออเดอร์ #" + webSaleNumb);
+                    }
+                    cancelQty = rsLock.getInt("web_sale_quantity");
+                    shippedFlag = rsLock.getBoolean("web_sale_shipped");
+                }
+
+                // Step 2: คืนสต็อกกลับเข้าคลังออนไลน์ชั่วคราว
+                psRestore.setInt(1, cancelQty);
+                psRestore.setString(2, webSku);
+                psRestore.executeUpdate();
+
+                // Step 3: ตรวจสอบสถานะการจัดส่ง (ถ้าส่งออกไปแล้วห้ามยกเลิก -> Rollback!)
+                if (shippedFlag) {
+                    throw new SQLException("ไม่สามารถยกเลิกออเดอร์ #" + webSaleNumb + " ได้เนื่องจากสินค้าถูกจัดส่งออกไปแล้ว -> ระบบ Rollback คืนค่าสต็อกเดิม");
+                }
+
+                // Step 4: ลบรายการสินค้า ปรับยอดบิลเป็น 0.00 และ Commit
+                psDelete.setInt(1, webSaleNumb);
+                psDelete.setString(2, webSku);
+                psDelete.executeUpdate();
+
+                psZero.setInt(1, webSaleNumb);
+                psZero.executeUpdate();
+
+                conn.commit();
+                System.out.println("[Tx 7] ตรวจสอบออเดอร์ผ่าน View ปกป้องข้อมูลบัตร และยกเลิกออเดอร์เว็บที่ยังไม่จัดส่ง #"
+                        + webSaleNumb + " พร้อมคืนสต็อกสำเร็จ (COMMIT)");
+            }
+        } catch (SQLException ex) {
+            conn.rollback();
+            System.out.println("[Tx 7] ยกเลิกการยกเลิกออเดอร์ (ROLLBACK): " + ex.getMessage());
+            throw ex;
+        }
+    }
+
+    // =========================================================================
     // Transaction 8: ฝ่าย HR บรรจุพนักงานใหม่ทดแทน เลื่อนตำแหน่งผู้จัดการแผนก และตรวจสอบเพดานงบประมาณแบบ Step-by-Step
     // Step 1: ล็อกแถวแผนกและพนักงาน (UPDLOCK, ROWLOCK) กัน HR อีกคนแก้ชนกัน
     // Step 2: บรรจุพนักงานใหม่เข้าแผนกเพื่อรับงานต่อ

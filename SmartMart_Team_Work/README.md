@@ -13,7 +13,7 @@
   * `lib/mssql-jdbc-12.8.1.jre11.jar` — ไดรเวอร์ JDBC สำหรับ SQL Server
   * `src/com/smartmart/db/` — โค้ด Java (รวมทั้งหมดไว้ด้วยกัน):
     * `TestTransactions.java` (**ไฟล์ Main กลาง — กดรันที่ไฟล์นี้**, รวมการทดสอบ Transactions และ `testDirtyRead()` บน Materialized View)
-    * `SmartMartTransactions.java` (รวมเมธอด Transactions 1, 2, 3, 4, 5, 8)
+    * `SmartMartTransactions.java` (รวมเมธอด Transactions 1–8 ครบทั้ง 8 รายการ)
 
 ---
 
@@ -26,8 +26,8 @@
 | **3** | การค้นหาสินค้าที่พร้อมจำหน่ายว่าอยู่ที่ Stores หรือ Warehouses ไหน | `1.4.1` + `vw_Materialized_Available_Inventory WITH (NOEXPAND)` | `SmartMartTransactions.java` (`checkAvailableStock`) |
 | **4** | การอัปเดตสถานะการจัดส่งพร้อมซ่อนที่อยู่จัดส่งของลูกค้า | `1.4.7`, `1.4.12` (`REPEATABLE READ`) | `SmartMartTransactions.java` (`updateShippingStatusAndMaskAddress`) |
 | **5** | การเปิดแคมเปญโปรโมชั่น ปรับราคาขายออนไลน์ และดึงข้อมูลสินค้าขึ้นแสดงผลบนเว็บ | `UPDATE sales_promotion / product / product_stocked` + `1.4.2` (`REPEATABLE READ`) | `SmartMartTransactions.java` (`launchWebPromotionAndFetchCatalog`) + เทสต์สิทธิ์ `User_Web_Sale_App` |
-| **6** | การสั่งซื้อสินค้าออนไลน์ผ่านเว็บไซต์ด้วยบัตรเครดิต | `1.4.8`, `1.4.13` (`READ COMMITTED`) | มีใน SQL Transaction Block |
-| **7** | การตรวจสอบรายการสั่งซื้อออนไลน์และสต็อกคลังเว็บแบบปกป้องข้อมูลบัตรและที่อยู่ | `1.4.4` (`vw_Safe_Web_Shipping_Address`) + `vw_Materialized_Web_Available_Inventory` | เทสต์สิทธิ์ `User_Manager` |
+| **6** | การสั่งซื้อสินค้าออนไลน์ผ่านเว็บไซต์ด้วยบัตรเครดิต | `1.4.8`, `1.4.13` (`READ COMMITTED`) | `SmartMartTransactions.java` (`purchaseOnlineWithCreditCard`) |
+| **7** | การตรวจสอบรายการสั่งซื้อออนไลน์และสต็อกคลังเว็บแบบปกป้องข้อมูลบัตรและที่อยู่ | `1.4.4` (`vw_Safe_Web_Shipping_Address`) + `vw_Materialized_Web_Available_Inventory` | `SmartMartTransactions.java` (`inspectAndCancelUnshippedWebOrder`) + เทสต์สิทธิ์ `User_Manager` |
 | **8** | การบรรจุพนักงานใหม่ทดแทน และเลื่อนตำแหน่งพนักงานเดิมเป็นผู้จัดการแผนกพร้อมปรับฐานเงินเดือนฝ่าย HR | `1.4.5`, `1.4.9`, `1.4.14` + `UPDATE department` (`REPEATABLE READ`) | `SmartMartTransactions.java` (`promoteEmployeeAndAssignDeptManager`) + เทสต์สิทธิ์ `User_HR` |
 
 ---
