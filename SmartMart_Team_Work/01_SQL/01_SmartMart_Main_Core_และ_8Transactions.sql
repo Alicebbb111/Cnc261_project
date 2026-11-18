@@ -251,37 +251,167 @@ GO
 -- 2. ข้อมูลตัวอย่าง (Sample Data)
 -- ============================================================================
 
-INSERT INTO state VALUES ('CA', 'California'), ('NY', 'New York');
-INSERT INTO in_store_payment_type VALUES (1, 'Cash'), (2, 'CreditCard');
+INSERT INTO state VALUES
+('CA', 'California'),
+('NY', 'New York'),
+('TX', 'Texas'),
+('WA', 'Washington'),
+('FL', 'Florida'),
+('IL', 'Illinois');
 
-INSERT INTO store VALUES (101, '100 Market St', 'San Francisco', 'CA', '94103', '415-555-0101', NULL);
-INSERT INTO department VALUES (10, 101, NULL);
-INSERT INTO warehouse VALUES (201, '500 Logistics Way', 'Oakland', 'CA', '94607', '510-555-0201', NULL);
+INSERT INTO in_store_payment_type VALUES
+(1, 'Cash'),
+(2, 'CreditCard'),
+(3, 'DebitCard'),
+(4, 'MobilePay');
 
+INSERT INTO store VALUES
+(101, '100 Market St', 'San Francisco', 'CA', '94103', '415-555-0101', NULL),
+(102, '750 Wilshire Blvd', 'Los Angeles', 'CA', '90017', '213-555-0102', NULL),
+(103, '350 Fifth Ave', 'New York', 'NY', '10118', '212-555-0103', NULL),
+(104, '600 Congress Ave', 'Austin', 'TX', '78701', '512-555-0104', NULL);
+
+INSERT INTO department VALUES
+(10, 101, NULL),
+(20, 101, NULL),
+(10, 102, NULL),
+(20, 102, NULL),
+(10, 103, NULL),
+(10, 104, NULL);
+
+INSERT INTO warehouse VALUES
+(201, '500 Logistics Way', 'Oakland', 'CA', '94607', '510-555-0201', NULL),
+(202, '88 Harbor Blvd', 'Brooklyn', 'NY', '11201', '718-555-0202', NULL),
+(203, '1200 Freight Rd', 'Dallas', 'TX', '75201', '214-555-0203', NULL);
+
+-- หมายเหตุ: เว้นรหัส employee_id = 1003 ไว้สำหรับการทดสอบบรรจุพนักงานใหม่ใน Transaction 8
 INSERT INTO employee VALUES
 (1001, 'Alice', 'Walker', '12 Pine St', 'San Francisco', 'CA', '94101', '415-555-1001', '111-11-1111', '1985-05-14', 10, 101, NULL, 1, 60000.00),
-(1002, 'Bob', 'Miller', '45 Oak Rd', 'San Francisco', 'CA', '94102', '415-555-1002', '222-22-2222', '1995-08-20', 10, 101, 1001, 2, 20.00);
+(1002, 'Bob', 'Miller', '45 Oak Rd', 'San Francisco', 'CA', '94102', '415-555-1002', '222-22-2222', '1995-08-20', 10, 101, 1001, 2, 20.00),
+(1004, 'Diana', 'Prince', '210 Mission St', 'San Francisco', 'CA', '94105', '415-555-1004', '444-44-4444', '1990-02-11', 20, 101, 1001, 1, 52000.00),
+(1005, 'Ethan', 'Hunt', '900 Sunset Blvd', 'Los Angeles', 'CA', '90028', '213-555-1005', '555-55-5555', '1988-07-04', 10, 102, NULL, 1, 62000.00),
+(1006, 'Fiona', 'Gallagher', '312 Melrose Ave', 'Los Angeles', 'CA', '90046', '213-555-1006', '666-66-6666', '1994-11-23', 20, 102, 1005, 2, 24.50),
+(1007, 'George', 'Martin', '77 Madison Ave', 'New York', 'NY', '10016', '212-555-1007', '777-77-7777', '1983-09-19', 10, 103, NULL, 1, 65000.00),
+(1008, 'Hannah', 'Abbott', '145 Lexington Ave', 'New York', 'NY', '10017', '212-555-1008', '888-88-8888', '1997-04-08', 10, 103, 1007, 2, 21.00),
+(1009, 'Ian', 'Wright', '405 Barton Springs', 'Austin', 'TX', '78704', '512-555-1009', '999-99-9999', '1989-12-01', 10, 104, NULL, 1, 58000.00),
+(1010, 'Julia', 'Roberts', '820 Lamar Blvd', 'Austin', 'TX', '78703', '512-555-1010', '123-45-6789', '1996-06-30', 10, 104, 1009, 2, 19.50);
 
 UPDATE store SET store_manager_id = 1001 WHERE store_numb = 101;
-UPDATE department SET dept_manager_id = 1001 WHERE dept_numb = 10 AND store_numb = 101;
-UPDATE warehouse SET warehouse_manager_id = 1001 WHERE warehouse_numb = 201;
+UPDATE store SET store_manager_id = 1005 WHERE store_numb = 102;
+UPDATE store SET store_manager_id = 1007 WHERE store_numb = 103;
+UPDATE store SET store_manager_id = 1009 WHERE store_numb = 104;
 
-INSERT INTO product VALUES ('UPC000000000001', 'Smart Watch', 'Piece', 1, NULL, 1);
-INSERT INTO sales_promotion VALUES ('UPC000000000001', '2026-01-01', '2029-12-31', 10, 'Discount 20%');
+UPDATE department SET dept_manager_id = 1001 WHERE dept_numb = 10 AND store_numb = 101;
+UPDATE department SET dept_manager_id = 1004 WHERE dept_numb = 20 AND store_numb = 101;
+UPDATE department SET dept_manager_id = 1005 WHERE dept_numb = 10 AND store_numb = 102;
+UPDATE department SET dept_manager_id = 1006 WHERE dept_numb = 20 AND store_numb = 102;
+UPDATE department SET dept_manager_id = 1007 WHERE dept_numb = 10 AND store_numb = 103;
+UPDATE department SET dept_manager_id = 1009 WHERE dept_numb = 10 AND store_numb = 104;
+
+UPDATE warehouse SET warehouse_manager_id = 1001 WHERE warehouse_numb = 201;
+UPDATE warehouse SET warehouse_manager_id = 1007 WHERE warehouse_numb = 202;
+UPDATE warehouse SET warehouse_manager_id = 1009 WHERE warehouse_numb = 203;
+
+INSERT INTO product VALUES
+('UPC000000000001', 'Smart Watch', 'Piece', 1, NULL, 1),
+('UPC000000000002', 'Wireless Noise-Canceling Earbuds', 'Box', 1, NULL, 1),
+('UPC000000000003', 'Mechanical Gaming Keyboard', 'Box', 2, NULL, 1),
+('UPC000000000004', '27-inch 4K UHD Monitor', 'Box', 8, NULL, 1),
+('UPC000000000005', 'USB-C 7-in-1 Multiport Hub', 'Piece', 1, NULL, 1),
+('UPC000000000006', 'Ergonomic Wireless Mouse', 'Piece', 1, NULL, 1),
+('UPC000000000007', 'Espresso Coffee Maker Pro', 'Box', 5, NULL, 0),
+('UPC000000000008', 'Aluminum Laptop Stand', 'Piece', 2, NULL, 1);
+
+INSERT INTO sales_promotion VALUES
+('UPC000000000001', '2026-01-01', '2029-12-31', 10, 'Discount 20%'),
+('UPC000000000002', '2026-01-01', '2027-12-31', 10, 'Flash Sale 15% Off'),
+('UPC000000000003', '2026-06-01', '2027-06-30', 20, 'Bundle Free Wrist Rest'),
+('UPC000000000005', '2026-01-01', '2026-12-31', 10, 'Year-End Promo 10% Off'),
+('UPC000000000008', '2025-01-01', '2025-12-31', 10, 'Past Holiday Promo (Expired)');
 
 INSERT INTO product_stocked VALUES
 ('SKU-STORE-00001', 'UPC000000000001', 1, 101, 10, NULL, 'M', 'Black', 50, 200.00),
-('SKU-WHSE-000001', 'UPC000000000001', 0, NULL, NULL, 201, 'M', 'Black', 100, 200.00);
+('SKU-WHSE-000001', 'UPC000000000001', 0, NULL, NULL, 201, 'M', 'Black', 100, 200.00),
+('SKU-STORE-00002', 'UPC000000000002', 1, 101, 10, NULL, 'Std', 'White', 35, 120.00),
+('SKU-WHSE-000002', 'UPC000000000002', 0, NULL, NULL, 201, 'Std', 'White', 80, 120.00),
+('SKU-STORE-00003', 'UPC000000000003', 1, 102, 10, NULL, 'Full', 'SpaceGray', 25, 150.00),
+('SKU-WHSE-000003', 'UPC000000000003', 0, NULL, NULL, 202, 'Full', 'SpaceGray', 60, 150.00),
+('SKU-STORE-00004', 'UPC000000000004', 1, 103, 10, NULL, '27in', 'Silver', 15, 380.00),
+('SKU-WHSE-000004', 'UPC000000000004', 0, NULL, NULL, 202, '27in', 'Silver', 40, 380.00),
+('SKU-STORE-00005', 'UPC000000000005', 1, 102, 20, NULL, 'Compact', 'Gray', 60, 45.00),
+('SKU-WHSE-000005', 'UPC000000000005', 0, NULL, NULL, 203, 'Compact', 'Gray', 150, 45.00),
+('SKU-STORE-00006', 'UPC000000000006', 1, 104, 10, NULL, 'M', 'Graphite', 40, 65.00),
+('SKU-WHSE-000006', 'UPC000000000006', 0, NULL, NULL, 203, 'M', 'Graphite', 90, 65.00),
+('SKU-STORE-00007', 'UPC000000000007', 1, 101, 20, NULL, 'L', 'Stainless', 12, 290.00),
+('SKU-STORE-00008', 'UPC000000000008', 1, 101, 20, NULL, 'Std', 'Silver', 30, 55.00),
+('SKU-WHSE-000008', 'UPC000000000008', 0, NULL, NULL, 201, 'Std', 'Silver', 75, 55.00);
 
-INSERT INTO in_store_sale VALUES (5001, DATEADD(DAY, -5, CAST(GETDATE() AS DATE)), 400.00, 0.00, 400.00, 2);
-INSERT INTO credit_sale_details VALUES (5001, '4111222233334444', '2028-12-31', 'JOHN DOE');
-INSERT INTO in_store_sale_item VALUES (5001, 'SKU-STORE-00001', 2, 200.00);
+-- หมายเหตุ: เว้นรหัส 5002 ไว้สำหรับการทดสอบ Transaction 2 (Java & SQL)
+INSERT INTO in_store_sale VALUES
+(5001, DATEADD(DAY, -5, CAST(GETDATE() AS DATE)), 400.00, 0.00, 400.00, 2),
+(5003, DATEADD(DAY, -3, CAST(GETDATE() AS DATE)), 165.00, 11.96, 176.96, 1),
+(5004, DATEADD(DAY, -2, CAST(GETDATE() AS DATE)), 530.00, 38.43, 568.43, 2),
+(5005, DATEADD(DAY, -1, CAST(GETDATE() AS DATE)), 90.00, 6.53, 96.53, 3),
+(5006, DATEADD(DAY, -20, CAST(GETDATE() AS DATE)), 290.00, 21.03, 311.03, 2),
+(5007, CAST(GETDATE() AS DATE), 120.00, 8.70, 128.70, 4);
 
-INSERT INTO web_customer VALUES (3001, 'Michael', 'Johnson', '415-555-3001', 'pass1234', 'mjohnson');
-INSERT INTO web_customer_credit_card VALUES (3001, '4999888877776666', '2029-09-30', 'MICHAEL JOHNSON');
-INSERT INTO web_sale_shipping_address VALUES (4001, 3001, '742 Evergreen St', 'San Francisco', 'CA', '94107', 'Michael', 'Johnson');
-INSERT INTO web_sale VALUES (6001, CAST(GETDATE() AS DATE), 3001, '4999888877776666', 229.50, 200.00, 15.00, 14.50);
-INSERT INTO web_sale_item VALUES (6001, 'SKU-WHSE-000001', 1, 0, 200.00, 4001, NULL);
+INSERT INTO credit_sale_details VALUES
+(5001, '4111222233334444', '2028-12-31', 'JOHN DOE'),
+(5004, '5412751234123456', '2029-06-30', 'SARAH CONNOR'),
+(5006, '4532015112830366', '2028-09-30', 'DAVID KIM');
+
+INSERT INTO in_store_sale_item VALUES
+(5001, 'SKU-STORE-00001', 2, 200.00),
+(5003, 'SKU-STORE-00002', 1, 120.00),
+(5003, 'SKU-STORE-00005', 1, 45.00),
+(5004, 'SKU-STORE-00003', 1, 150.00),
+(5004, 'SKU-STORE-00004', 1, 380.00),
+(5005, 'SKU-STORE-00005', 2, 45.00),
+(5006, 'SKU-STORE-00007', 1, 290.00),
+(5007, 'SKU-STORE-00002', 1, 120.00);
+
+INSERT INTO web_customer VALUES
+(3001, 'Michael', 'Johnson', '415-555-3001', 'pass1234', 'mjohnson'),
+(3002, 'Sarah', 'Connor', '213-555-3002', 'sconnor99', 'sconnor'),
+(3003, 'David', 'Kim', '212-555-3003', 'dkim2026', 'davidkim'),
+(3004, 'Emma', 'Watson', '512-555-3004', 'ewatson88', 'ewatson'),
+(3005, 'Liam', 'Patel', '206-555-3005', 'lpatel77', 'liampatel');
+
+INSERT INTO web_customer_credit_card VALUES
+(3001, '4999888877776666', '2029-09-30', 'MICHAEL JOHNSON'),
+(3001, '5500112233445566', '2028-11-30', 'MICHAEL JOHNSON'),
+(3002, '4539148803436467', '2029-05-31', 'SARAH CONNOR'),
+(3003, '5105105105105100', '2028-08-31', 'DAVID KIM'),
+(3004, '4024007106512345', '2030-01-31', 'EMMA WATSON'),
+(3005, '4916338506082832', '2029-03-31', 'LIAM PATEL');
+
+-- หมายเหตุ: ที่อยู่ 4001 และใบสั่งซื้อ 6001 ยังไม่จัดส่ง/ไม่ถูก Mask เพื่อใช้ทดสอบ Transaction 4 และ 7
+INSERT INTO web_sale_shipping_address VALUES
+(4001, 3001, '742 Evergreen St', 'San Francisco', 'CA', '94107', 'Michael', 'Johnson'),
+(4002, 3002, '*** MASKED ***', 'Los Angeles', 'CA', '90012', 'Sarah', 'Connor'),
+(4003, 3003, '*** MASKED ***', 'New York', 'NY', '10001', 'David', 'Kim'),
+(4004, 3004, '105 Congress Ave', 'Austin', 'TX', '78701', 'Emma', 'Watson'),
+(4005, 3005, '400 Broad St', 'Seattle', 'WA', '98109', 'Liam', 'Patel');
+
+-- หมายเหตุ: เว้นรหัส 6002, 6003, 6099 ไว้สำหรับการทดสอบ Transaction 5, 6 และ Test-query
+INSERT INTO web_sale VALUES
+(6001, CAST(GETDATE() AS DATE), 3001, '4999888877776666', 229.50, 200.00, 15.00, 14.50),
+(6004, DATEADD(DAY, -4, CAST(GETDATE() AS DATE)), 3002, '4539148803436467', 143.70, 120.00, 15.00, 8.70),
+(6005, DATEADD(DAY, -3, CAST(GETDATE() AS DATE)), 3003, '5105105105105100', 422.55, 380.00, 15.00, 27.55),
+(6006, DATEADD(DAY, -1, CAST(GETDATE() AS DATE)), 3004, '4024007106512345', 219.13, 195.00, 10.00, 14.13),
+(6007, CAST(GETDATE() AS DATE), 3005, '4916338506082832', 79.71, 65.00, 10.00, 4.71);
+
+INSERT INTO web_sale_shipment VALUES
+(6004, '2026-11-15T10:30:00', 120.00, 8.70, 15.00, 143.70),
+(6005, '2026-11-16T14:15:00', 380.00, 27.55, 15.00, 422.55);
+
+INSERT INTO web_sale_item VALUES
+(6001, 'SKU-WHSE-000001', 1, 0, 200.00, 4001, NULL),
+(6004, 'SKU-WHSE-000002', 1, 1, 120.00, 4002, '2026-11-15T10:30:00'),
+(6005, 'SKU-WHSE-000004', 1, 1, 380.00, 4003, '2026-11-16T14:15:00'),
+(6006, 'SKU-WHSE-000003', 1, 0, 150.00, 4004, NULL),
+(6006, 'SKU-WHSE-000005', 1, 0, 45.00, 4004, NULL),
+(6007, 'SKU-WHSE-000006', 1, 0, 65.00, 4005, NULL);
 GO
 
 -- ============================================================================
