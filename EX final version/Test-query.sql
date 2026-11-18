@@ -54,7 +54,44 @@ EXECUTE AS USER = 'User_Manager';
 REVERT;
 GO
 
--- [5] ทดสอบ Step-by-Step Transaction (Tx 5):
+-- [5] ทดสอบสิทธิ์ Admin (User_Admin):
+-- • มีสิทธิ์ดูแลโครงสร้างตาราง (db_ddladmin) และสำรองข้อมูล (db_backupoperator / BACKUP DATABASE)
+-- • แต่แยกหน้าที่ (Separation of Duties) ไม่ได้ให้สิทธิ์ SELECT ตารางบัตรเครดิตลูกค้าและตารางยอดขาย
+EXECUTE AS USER = 'User_Admin';
+    CREATE TABLE dbo._Admin_DDL_Check (test_id INT);
+    DROP TABLE dbo._Admin_DDL_Check;
+    SELECT * FROM dbo.web_customer_credit_card; -- คาดหวัง: Permission Denied
+    SELECT * FROM dbo.in_store_sale;            -- คาดหวัง: Permission Denied
+REVERT;
+GO
+
+-- [6] ทดสอบสิทธิ์ Supervisor (User_Supervisor):
+-- • ดูข้อมูลพนักงานเพื่อดูแลลูกน้องได้ (แต่ SSN และเงินเดือนถูก Dynamic Data Masking บังไว้)
+-- • ตรวจสอบใบเสร็จหน้าร้าน (in_store_sale) และดูสรุปสต็อกรวม (vw_Materialized_Available_Inventory) เพื่ออนุมัติคืนสินค้า 15 วันได้
+-- • แต่ไม่มีสิทธิ์เข้าถึงสต็อกคลังเว็บ (vw_Materialized_Web_Available_Inventory) และตารางบัตรเครดิต (credit_sale_details)
+EXECUTE AS USER = 'User_Supervisor';
+    SELECT * FROM dbo.employee;
+    SELECT * FROM dbo.in_store_sale;
+    SELECT * FROM dbo.vw_Materialized_Available_Inventory WITH (NOEXPAND);
+    SELECT * FROM dbo.vw_Materialized_Web_Available_Inventory WITH (NOEXPAND); -- คาดหวัง: Permission Denied
+    SELECT * FROM dbo.credit_sale_details;                                     -- คาดหวัง: Permission Denied
+REVERT;
+GO
+
+-- [7] ทดสอบสิทธิ์ In-Store Sale App (User_InStore_Sale_App):
+-- • แอป POS ขายหน้าร้าน ดูข้อมูลสินค้า (product) และสต็อกเฉพาะหน้าร้าน (vw_Materialized_InStore_Available_Inventory) ได้
+-- • มีสิทธิ์ INSERT บันทึกบัตรเครดิตตอนชำระเงินแบบ Write-only แต่ไม่มีสิทธิ์ SELECT ดึงเลขบัตรจาก credit_sale_details กลับมาดู
+-- • ไม่มีสิทธิ์เข้าถึงระบบขายออนไลน์ (web_sale) และตารางพนักงาน (employee)
+EXECUTE AS USER = 'User_InStore_Sale_App';
+    SELECT * FROM dbo.product;
+    SELECT * FROM dbo.vw_Materialized_InStore_Available_Inventory WITH (NOEXPAND);
+    SELECT * FROM dbo.credit_sale_details; -- คาดหวัง: Permission Denied (Write-only ห้ามดึงเลขบัตรออกมาดู)
+    SELECT * FROM dbo.web_sale;            -- คาดหวัง: Permission Denied (แยกขาดจากระบบเว็บ)
+    SELECT * FROM dbo.employee;            -- คาดหวัง: Permission Denied (แอปห้ามแตะข้อมูลพนักงาน)
+REVERT;
+GO
+
+-- [8] ทดสอบ Step-by-Step Transaction (Tx 5):
 -- จำลองลูกค้า 2 คนแย่งกันซื้อสินค้าโปรโมชั่นออนไลน์:
 -- • คนที่ 1 กดซื้อ ล็อกสต็อก (UPDLOCK, ROWLOCK) ตัดสต็อกลงชั่วคราว และเปิดใบสั่งซื้อรอจ่ายเงิน
 --   แต่สุดท้าย "ไม่จ่ายเงิน" -> ระบบ ROLLBACK ทั้งใบสั่งซื้อและสต็อกเด้งกลับมาเท่าเดิม (100 ชิ้น)
@@ -130,7 +167,7 @@ END CATCH;
 SELECT SKU, number_on_hand AS [สต็อกหลังคนที่_2_จ่ายเงินสำเร็จ_Commit] FROM dbo.product_stocked WHERE SKU = 'SKU-WHSE-000001';
 GO
 
--- [6] ตรวจสอบที่อยู่ลูกค้าหลังรัน Transaction อัปเดตส่งของและซ่อนบ้านเลขที่ (*** MASKED ***)
+-- [9] ตรวจสอบที่อยู่ลูกค้าหลังรัน Transaction อัปเดตส่งของและซ่อนบ้านเลขที่ (*** MASKED ***)
 SELECT web_shipping_address_numb, web_customer_numb, web_shipping_street,
        web_customer_shipping_city, web_customer_shipping_state_code, web_customer_shipping_zip
 FROM dbo.web_sale_shipping_address;
